@@ -119,6 +119,9 @@ enabled_tests/test_pagerduty_users_all_valid.py ........................
 Contributing
 ------------
 
+Note: We're in the process of putting together a Contributor Licence Agreement,
+No pull requests will be merged until we've got that in place - Sorry!
+
 Our goal is to build a comprehensive set of security scripts that can be cherry
 picked by organisation to audit as many services as possible, therefore we
 will aim to merge pull requests as quickly as possible (within 48 hours). To
