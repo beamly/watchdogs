@@ -162,14 +162,14 @@ def user_has_mfa_enabled(username):
     mfa_devices = CFN.get_all_mfa_devices(username)
     return len(mfa_devices['list_mfa_devices_response']['list_mfa_devices_result']['mfa_devices']) > 0
 
-def get_access_keys_for_user(username):
+def get_access_keys_for_user(username, active_only=True):
     """
     Returns a list of AWS Access Keys for the given user
     :param username: str The username for which you would like to return access keys for
     :returns: list A list of AWS Access Keys associated with this user
     """
     response = CFN.get_all_access_keys(user_name=username)['list_access_keys_response']['list_access_keys_result']['access_key_metadata']
-    return [key['access_key_id'] for key in response]
+    return [key['access_key_id'] for key in response if (active_only and key['status'] == 'Active') or not active_only]
 
 def iam_user_is_valid(user):
     """
