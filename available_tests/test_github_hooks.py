@@ -120,13 +120,47 @@ def github_repo_is_clean(organisation, reponame):
 
 def dictionary_match(dict1, dict2):
     """
-    Recursively tests whether dict1 is a subset of dict2. Shamelessly copied from:
+    Recursively tests whether dict1 is a "loose" subset of dict2, where loose means 
+    string values in dict1 are "in" the opposite value in dict2, meaning these two dictionaries
+    are considered "matched":
+
+    dict1: 
+
+        {'config' : {'url': 'https://tbonetv.jira.com/rest/bitbucket/1.0/repository'}}
+    
+    dict2: 
+
+    { 'active': True,
+      'config': {   
+          'url': 
+          'https://tbonetv.jira.com/rest/bitbucket/1.0/repository/1234/sync'
+        },
+      'created_at': u'2015-08-10T15:10:24Z',
+      'events': ['push'],
+      'id': 123456,
+      'last_response': { 
+        'code': 200, 
+        'message': u'OK', 
+        'status': 
+        'active'
+      },
+      'name': u'web',
+      'ping_url': 'https://api.github.com/repos/zeebox/MyRepo/hooks/123456/pings',
+      'test_url': 'https://api.github.com/repos/zeebox/MyRepo/hooks/123456/test',
+      'updated_at': '2015-08-10T15:10:24Z',
+      'url': 'https://api.github.com/repos/zeebox/MyRepo/hooks/123456'}
+
+
+    Shamelessly copied from:
     http://stackoverflow.com/questions/9323749/python-check-if-one-dictionary-is-a-subset-of-another-larger-dictionary
     """
     try:
         for pkey, pvalue in dict1.iteritems():
             if type(pvalue) is dict:
                 result = dictionary_match(pvalue, dict2[pkey])
+            elif type(pvalue) is str:
+                assert pvalue in dict2[pkey]
+                result = True
             else:
                 assert dict2[pkey] == pvalue
                 result = True
