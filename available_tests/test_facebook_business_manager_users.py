@@ -6,6 +6,7 @@ import requests
 
 CONFIG = imp.load_source('config', os.environ['WATCHDOG_CONFIG_LOCATION'])
 
+
 def test_facebook_business_manager_users():
     # Intro:
     # * in order to interact with the Facebook API you need an access token
@@ -45,7 +46,7 @@ def test_facebook_business_manager_users():
 
 def facebook_user_is_in_ldap(json):
     user_json = json['user']
-    assert user_json['id'] in CONFIG.FACEBOOK_IDS,\
+    assert user_json['id'] in CONFIG.FACEBOOK_IDS, \
         'Unknown user - id: [{0}] email: [{1}] name: [{2}] alt name: [{3}]'.format(
             user_json['id'],
             json['email'],
