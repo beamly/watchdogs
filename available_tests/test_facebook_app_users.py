@@ -25,11 +25,20 @@ def test_facebook_app_users():
     rsp2 = requests.get(url2)
     rsp2.raise_for_status()
     for json in rsp2.json()['data']:
-        yield facebook_user_is_in_ldap, json
+        yield facebook_user_is_in_ldap, json, access_token
 
 
-def facebook_user_is_in_ldap(json):
+def facebook_user_is_in_ldap(json, access_token):
     # N.B. User IDs associated to Apps are app-scoped, see
     # https://developers.facebook.com/docs/apps/upgrading#upgrading_v2_0_user_ids
-    assert json['user'] in CONFIG.FACEBOOK_IDS, \
-        'Unknown user: [{0}], role: [{1}]'.format(json['user'], json['role'])
+    assert json['user'] in CONFIG.FACEBOOK_IDS, error_msg(json['user'],
+                                                          access_token)
+
+
+def error_msg(user_id, access_token):
+    url = "https://graph.facebook.com/v2.4/{0}?access_token={1}".format(
+        user_id, access_token)
+    rsp = requests.get(url)
+    rsp.raise_for_status()
+    json = rsp.json()
+    return 'Unknown user: [{0}]: [{1}]'.format(user_id, json['name'])
