@@ -5,13 +5,13 @@ verifies that there are no public repositories
 
 Required config.py variables:
 
-GITHUB_ORGANISATIONS        List[String]    A list of github organisations whose
-                                            repositories you would like to audit
-                                            hooks for
+GITHUB_PRIVATE_ORGANISATIONS   List[String]   A list of github organisations whose
+                                              repositories you would like to audit
+                                              hooks for
 
-GITHUB_API_TOKEN            String          A github API token that has access
-                                            to all the organisations in
-                                            GITHUB_ORGANISATIONS
+GITHUB_API_TOKEN                String        A github API token that has access
+                                              to all the organisations in
+                                              GITHUB_PRIVATE_ORGANISATIONS
 
 Examples:
 GITHUB_PRIVATE_ORGANISATIONS = ['myorg1', 'myorg2']
