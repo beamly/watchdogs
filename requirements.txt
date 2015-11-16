@@ -1,6 +1,7 @@
 requests==2.5.3
 pytest
 nose
+boto
 beautifulsoup4
 pylint
 python-dateutil

@@ -50,6 +50,20 @@ AWS_IAM_KEY_LAST_USED_DAYS  int             The number of days in which a key
 AWS_IAM_USER_LAST_LOGGED_IN_DAYS            The number of days since a users
                                             last login (If they have a password
                                             set) to be considered active.
+
+AWS_IAM_VALID_VAULT_USERS                   OPTIONAL. Set to a list of strings to
+                                            configure support for Hashicorp vault,
+                                            which has is used to dynamically generate
+                                            AWS IAM users for a limited period of
+                                            time and automatically deletes them.
+
+AWS_IAM_VAULT_USER_AUTH_MECHANISM           Only required if AWS_IAM_VALID_VAULT_USERS is set. Vault creates
+                                            users using the pattern: vault-{AUTH_TYPE}-{USERNAME}-{EXPIRATION}
+                                            Defaults to 'ldap'
+
+AWS_IAM_VAULT_USER_LEASE_TIME               Only required if AWS_IAM_VALID_VAULT_USERS is set. The number of
+                                            seconds that you've configured vault to issue AWS token leases for.
+
 """
 import time
 import base64
@@ -124,6 +138,14 @@ def get_days_since_key_last_use(aws_access_key):
     except KeyError:
         return None
 
+def is_vault_enabled():
+    try:
+        a = CONFIG.AWS_IAM_VALID_VAULT_USERS
+        b = CONFIG.AWS_IAM_VAULT_USER_AUTH_MECHANISM
+        c = CONFIG.AWS_IAM_VAULT_USER_LEASE_TIME
+        return True
+    except AttributeError:
+        return False
 
 def test_all_iam_users():
     """
@@ -139,7 +161,10 @@ def test_all_iam_users():
     iam_users = CFN.get_all_users()
 
     for user in iam_users['list_users_response']['list_users_result']['users']:
-        yield iam_user_is_valid, user
+        if is_vault_enabled():
+            yield iam_user_is_valid, user, CONFIG.AWS_IAM_VALID_VAULT_USERS, CONFIG.AWS_IAM_VAULT_USER_AUTH_MECHANISM, CONFIG.AWS_IAM_VAULT_USER_LEASE_TIME
+        else:
+            yield iam_user_is_valid, user
 
 def user_has_password(username):
     """
@@ -171,7 +196,7 @@ def get_access_keys_for_user(username, active_only=True):
     response = CFN.get_all_access_keys(user_name=username)['list_access_keys_response']['list_access_keys_result']['access_key_metadata']
     return [key['access_key_id'] for key in response if (active_only and key['status'] == 'Active') or not active_only]
 
-def iam_user_is_valid(user):
+def iam_user_is_valid(user, vault_usernames=None, vault_auth_method='ldap', vault_lease_time=3600):
     """
     Ensure that the username of the provided user:
 
@@ -185,16 +210,28 @@ def iam_user_is_valid(user):
     """
     # Assert that the user is known
     username = user['user_name']
-    assert username.lower() in CONFIG.AWS_IAM_VALID_USERNAMES
+    tokens = username.split('-')
+
+    if username.startswith('vault-') and vault_usernames is not None and len(tokens) ==5:
+        # Looks like a vault user.
+        grace_period = 120
+        earliest_create_time = time.time() - vault_lease_time - grace_period
+        assert tokens[0] == 'vault'
+        assert tokens[1] == vault_auth_method
+        assert tokens[2] in vault_usernames
+        assert int(tokens[3]) > earliest_create_time
+    else:
+        assert username.lower() in CONFIG.AWS_IAM_VALID_USERNAMES
 
     # Assert the user has a maximum of one active key
     access_keys = get_access_keys_for_user(username)
     assert len(access_keys) <= 1
 
-    # Assert that the key has been recently
+    # Assert that the key has been used recently
     for key in access_keys:
         days_since_last_used = get_days_since_key_last_use(key)
-        assert (days_since_last_used is not None) and (days_since_last_used < CONFIG.AWS_IAM_KEY_LAST_USED_DAYS)
+        if days_since_last_used is not None:
+            assert days_since_last_used < CONFIG.AWS_IAM_KEY_LAST_USED_DAYS
 
     # Is the user has a password check that they've got 2FA enabled and that they've logged in recently
     if user_has_password(username):
