@@ -27,8 +27,6 @@ def test_unknown_dropbox_users():
     response = requests.post('https://api.dropbox.com/1/team/members/list', headers=headers, data=json.dumps({'limit': 1000}))
 
     all_dropbox_emails = [member['profile']['email'] for member in response.json()['members']]
-    print all_dropbox_emails
-    print type(all_dropbox_emails)
     for dropbox_email in all_dropbox_emails:
         yield email_is_in_ldap, dropbox_email
 
