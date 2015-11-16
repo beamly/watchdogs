@@ -34,10 +34,10 @@ def test_unknown_pd_users():
     for email in all_registered_pd_emails:
         yield email_is_in_ldap, email
 
-def email_is_in_ldap(email):
+def email_is_in_ldap(email_to_test):
     """
     Asserts that the email provided is present in the list of
     PAGERDUTY_VALID_EMAILS. Case insensitive.
     """
     valid_emails = [email.lower() for email in CONFIG.PAGERDUTY_VALID_EMAILS]
-    assert email.lower() in valid_emails
+    assert email_to_test.lower() in valid_emails
