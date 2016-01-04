@@ -54,7 +54,7 @@ def test_unknown_slack_users():
     all_active_slack_users = get_all_active_slack_users(auth_token=CONFIG.SLACK_AUTH_TOKEN)
 
     for user in all_active_slack_users:
-        if not user['is_bot']:
+        if user['id'] != 'USLACKBOT' and not user['is_bot']:
             yield email_is_valid, user['profile']['email'].lower()
             if user['profile']['email'] not in CONFIG.SLACK_EXCEPTIONS:
                 yield two_factor_enabled, user['real_name'], user['has_2fa']
