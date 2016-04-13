@@ -46,7 +46,11 @@ def test_facebook_business_manager_users():
 
 def facebook_user_is_in_ldap(json):
     user_json = json['user']
-    assert user_json['id'] in CONFIG.FACEBOOK_IDS, \
+
+    is_known_facebook_id = user_json['id'] in CONFIG.FACEBOOK_IDS
+    is_known_email_address = user_json['email'] in CONFIG.FACEBOOK_KNOWN_EMAILS
+
+    assert is_known_facebook_id or is_known_email_address, \
         'Unknown user - id: [{0}] email: [{1}] name: [{2}] alt name: [{3}]'.format(
             user_json['id'],
             json['email'],
