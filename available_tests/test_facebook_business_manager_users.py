@@ -14,7 +14,7 @@ def test_facebook_business_manager_users():
     # * but that requires an interactive login process
     # * and it only lasts a few hours
     # * so we exchange that short-lived for a long-lived one
-    #   (lasts 60 days, which refreshes on every use)
+    #   (lasts 60 days, and sadly requires refreshes every 60 days...)
     # * but to do that a Facebook App is required (for its id and secret)
     # * so..
     #
