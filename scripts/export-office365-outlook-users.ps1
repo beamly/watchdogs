@@ -63,8 +63,8 @@ $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri ht
 Import-Module -Name C:\Windows\System32\WindowsPowershell\v1.0\Modules\MSOnline
 Connect-MSOLService -Credential $MSOLM
 Import-PSSession $Session -AllowClobber
-Get-MsolUser -All | select DisplayName,RecipientType,EmailAddresses | Export-Csv Users.csv
-#Get-Recipient -ResultSize Unlimited | select DisplayName,RecipientType,EmailAddresses | Export-Csv users.csv
+#Get-MsolUser -All | select DisplayName,RecipientType,EmailAddresses | Export-Csv Users.csv
+Get-Recipient -ResultSize Unlimited | select DisplayName,RecipientType,EmailAddresses | Export-Csv users.csv
 
 $O365ROLE = Get-MsolRole
 foreach ( $O365ROLE in $O365ROLE )
