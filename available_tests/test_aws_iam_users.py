@@ -212,7 +212,7 @@ def iam_user_is_valid(user, vault_usernames=None, vault_auth_method='ldap', vaul
     username = user['user_name']
     tokens = username.split('-')
 
-    if username.startswith('vault-') and vault_usernames is not None and len(tokens) ==5:
+    if username.startswith('vault-') and vault_usernames is not None and len(tokens) == 6:
         # Looks like a vault user.
         grace_period = 120
         earliest_create_time = time.time() - vault_lease_time - grace_period
