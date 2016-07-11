@@ -218,7 +218,7 @@ def iam_user_is_valid(user, vault_usernames=None, vault_auth_method='ldap', vaul
         earliest_create_time = time.time() - vault_lease_time - grace_period
         assert tokens[0] == 'vault'
         assert tokens[1] == vault_auth_method
-        assert tokens[3] in vault_usernames
+        assert tokens[2] in vault_usernames
         assert int(tokens[4]) > earliest_create_time
     else:
         assert username.lower() in CONFIG.AWS_IAM_VALID_USERNAMES
