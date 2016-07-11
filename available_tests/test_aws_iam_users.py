@@ -58,7 +58,7 @@ AWS_IAM_VALID_VAULT_USERS                   OPTIONAL. Set to a list of strings t
                                             time and automatically deletes them.
 
 AWS_IAM_VAULT_USER_AUTH_MECHANISM           Only required if AWS_IAM_VALID_VAULT_USERS is set. Vault creates
-                                            users using the pattern: vault-{AUTH_TYPE}-{USERNAME}-{EXPIRATION}
+                                            users using the pattern: vault-{AUTH_TYPE}-{USERNAME}-{POLICY}-{EXPIRATION}
                                             Defaults to 'ldap'
 
 AWS_IAM_VAULT_USER_LEASE_TIME               Only required if AWS_IAM_VALID_VAULT_USERS is set. The number of
@@ -218,8 +218,8 @@ def iam_user_is_valid(user, vault_usernames=None, vault_auth_method='ldap', vaul
         earliest_create_time = time.time() - vault_lease_time - grace_period
         assert tokens[0] == 'vault'
         assert tokens[1] == vault_auth_method
-        assert tokens[2] in vault_usernames
-        assert int(tokens[3]) > earliest_create_time
+        assert tokens[3] in vault_usernames
+        assert int(tokens[4]) > earliest_create_time
     else:
         assert username.lower() in CONFIG.AWS_IAM_VALID_USERNAMES
 
