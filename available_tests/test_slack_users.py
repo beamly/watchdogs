@@ -16,20 +16,33 @@ SLACK_EXCEPTIONS        dict            A dictionary of email address: Exception
                                         That can be used to define external
                                         (Restricted/Single channel) users. Format:
 
-                                          { 'EMAIL@DOMAIN.COM':
+                                          { 'email.+@domain.com':
                                             {
                                               'description': 'DESCRIPTION',
                                               'allowed_until': 'dd/mm/yyyy'
                                             }
                                           }
 
+                                        The key is a regaulr expression of a match
+
+                                        The value is a dictionary that supports the following parameters:
+
+                                        allowed_until: A date for which this exception is valid
+
+                                        single_channel: Ensure that the 'is_ultra_restricted' attribute
+                                        returned by the Slack API is True (i.e. that they're a single
+                                        channel only guest)
+
+                                        prefix: Assert that the users username of the begins with this prefix
+
 """
 
+import re
+import os
+import imp
 import time
 import requests
 
-import os
-import imp
 CONFIG = imp.load_source('config', os.environ['WATCHDOG_CONFIG_LOCATION'])
 
 def get_all_active_slack_users(auth_token):
@@ -54,26 +67,41 @@ def test_unknown_slack_users():
     all_active_slack_users = get_all_active_slack_users(auth_token=CONFIG.SLACK_AUTH_TOKEN)
 
     for user in all_active_slack_users:
-        if user['id'] != 'USLACKBOT' and not user['is_bot']:
-            yield email_is_valid, user['profile']['email'].lower()
-            if user['profile']['email'] not in CONFIG.SLACK_EXCEPTIONS:
-                yield two_factor_enabled, user['real_name'], user['has_2fa']
 
-def email_is_valid(slack_account_email):
+        if user['id'] != 'USLACKBOT' and not user['is_bot']:
+            # This user isn't a bot
+            user_name = user['name']
+            user_email = user['profile']['email'].lower()
+            user_two_factor_enabled = user['has_2fa']
+            user_single_channel_only = user['is_ultra_restricted']
+
+            yield slack_user_is_valid, user_name, user_email, user_two_factor_enabled, user_single_channel_only
+
+
+def slack_user_is_valid(username, email, two_factor_enabled, single_channel_only):
     """
     Asserts that an email address is either in SLACK_VALID_EMAILS or is a key in
     SLACK_EXCEPTIONS and that the 'allowed_until' field is after todays date
     """
-    if slack_account_email in CONFIG.SLACK_EXCEPTIONS:
-        # We have eception for this address, check it's still valid
-        valid_until = time.strptime(CONFIG.SLACK_EXCEPTIONS[slack_account_email]['allowed_until'], "%d/%m/%Y")
-        assert time.gmtime() <= valid_until
-    else:
-        assert slack_account_email in CONFIG.SLACK_VALID_EMAILS
+    exception_match = None
 
-def two_factor_enabled(realname, two_factor_auth_enabled):
-    """
-    Asserts that two factor authentication is enabled for this user
-    """
-    print realname
-    assert two_factor_auth_enabled
+    # Either it's an exception or
+    for EXCEPTION in CONFIG.SLACK_EXCEPTIONS:
+        if re.match(EXCEPTION, email):
+            exception_match = CONFIG.SLACK_EXCEPTIONS[EXCEPTION]
+
+    if exception_match is not None:
+        if 'allowed_until' in exception_match:
+            valid_until = time.strptime(exception_match['allowed_until'], "%d/%m/%Y")
+            assert time.gmtime() <= valid_until
+
+        if 'single_channel' in exception_match:
+            assert single_channel_only
+
+        if 'prefix' in exception_match:
+            assert username.startswith(exception_match['prefix'])
+
+    else:
+        assert email in CONFIG.SLACK_VALID_EMAILS
+
+
