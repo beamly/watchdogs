@@ -55,6 +55,9 @@
 # Manifest   MSOnline                            {New-MsolServicePrincipalAddr...
 # <snip>
 
+Clear-Content Users.csv
+Clear-Content admins.txt
+
 Get-Module -ListAvailable
 
 $SecPass1 = convertto-securestring -asplaintext -string $env:OFFICE_365_PASSWORD -force
@@ -65,6 +68,7 @@ Connect-MSOLService -Credential $MSOLM
 Import-PSSession $Session -AllowClobber
 #Get-MsolUser -All | select DisplayName,RecipientType,EmailAddresses | Export-Csv Users.csv
 Get-Recipient -ResultSize Unlimited | select DisplayName,RecipientType,EmailAddresses | Export-Csv users.csv
+
 
 $O365ROLE = Get-MsolRole
 foreach ( $O365ROLE in $O365ROLE )
