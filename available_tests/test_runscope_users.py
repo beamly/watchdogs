@@ -35,34 +35,26 @@ RUNSCOPE_VALID_EMAILS       List         A list of email addresses for valid Run
 
 """
 
-import requests
-
 import os
 import imp
+import pytest
+import requests
+
 CONFIG = imp.load_source('config', os.environ['WATCHDOG_CONFIG_LOCATION'])
 
-def get_all_runscope_team_members(access_token, team_id):
+def _all_active_runscope_users():
     """
     Returns a list of members for a given runscope team, each represented as a dictionary.
     (See https://www.runscope.com/docs/api/resources/teams for fields)
     """
 
-    uri = "https://api.runscope.com/teams/{0}/people".format(team_id)
-    response = requests.get(uri, headers={'Authorization': 'bearer {0}'.format(access_token)})
-    all_runscope_users = response.json()['data']
-    return all_runscope_users
+    uri = "https://api.runscope.com/teams/{0}/people".format(CONFIG.RUNSCOPE_TEAM_ID)
+    response = requests.get(uri, headers={'Authorization': 'bearer {0}'.format(CONFIG.RUNSCOPE_ACCESS_TOKEN)})
+    return [user['email'] for user in response.json()['data']]
 
-def test_unknown_runscope_users():
+@pytest.mark.parametrize("email", _all_active_runscope_users())
+def test_runscope_user(email):
     """
     Assert that all email addresses of all users in Runscope are known
     """
-    all_runscope_users = get_all_runscope_team_members(access_token=CONFIG.RUNSCOPE_ACCESS_TOKEN, team_id=CONFIG.RUNSCOPE_TEAM_ID)
-    for user in all_runscope_users:
-        yield email_is_in_valid, user['email'].lower()
-
-def email_is_in_valid(runscope_email_address):
-    """
-    Assert that the email address of a single Runscope user is valid/active
-    """
-    valid_emails = [email.lower() for email in CONFIG.RUNSCOPE_VALID_EMAILS]
-    assert runscope_email_address in valid_emails
+    assert email in CONFIG.RUNSCOPE_VALID_EMAILS

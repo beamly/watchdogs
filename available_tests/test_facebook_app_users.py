@@ -2,12 +2,19 @@
 
 import imp
 import os
+import pytest
 import requests
 
 CONFIG = imp.load_source('config', os.environ['WATCHDOG_CONFIG_LOCATION'])
 
+def get_name_for_token(user_id, access_token, app_name):
+    url = "https://graph.facebook.com/v2.4/{0}?access_token={1}".format(user_id, access_token)
+    rsp = requests.get(url)
+    rsp.raise_for_status()
+    json = rsp.json()
+    return json['name']
 
-def test_facebook_app_users():
+def _get_all_facebook_app_users():
     facebook_users = []
     for app in CONFIG.FACEBOOK_APPS:
         app_name = app["name"]
@@ -30,29 +37,13 @@ def test_facebook_app_users():
         rsp2 = requests.get(url2)
         rsp2.raise_for_status()
         for json in rsp2.json()['data']:
-            facebook_users.append({
-                "user_id": json["user"],
-                "access_token": access_token,
-                "app_name": app_name,
-            })
+            facebook_users.append((get_name_for_token(json["user"],access_token,app_name),json["user"], access_token, app_name))
 
-    for user in facebook_users:
-        yield facebook_user_is_in_ldap, \
-            user["user_id"], user["access_token"], user["app_name"]
+    return facebook_users
 
-
-def facebook_user_is_in_ldap(user_id, access_token, app_name):
+@pytest.mark.parametrize("facebook_name, facebook_user_id, access_token, app_name", _get_all_facebook_app_users())
+def test_facebook_user_is_in_ldap(facebook_name, facebook_user_id, access_token, app_name):
     # N.B. User IDs associated to Apps are app-scoped, see
     # https://developers.facebook.com/docs/apps/upgrading#upgrading_v2_0_user_ids
-    assert user_id in CONFIG.FACEBOOK_IDS, error_msg(
-        user_id, access_token, app_name)
+    assert (facebook_user_id in CONFIG.FACEBOOK_IDS) or facebook_name.upper() in CONFIG.FACEBOOK_NAMES
 
-
-def error_msg(user_id, access_token, app_name):
-    url = "https://graph.facebook.com/v2.4/{0}?access_token={1}".format(
-        user_id, access_token)
-    rsp = requests.get(url)
-    rsp.raise_for_status()
-    json = rsp.json()
-    return 'Unknown user on [{0}]: [{1}]: [{2}]'.format(
-        app_name, user_id, json['name'])

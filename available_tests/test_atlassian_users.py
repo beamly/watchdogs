@@ -4,6 +4,8 @@ Tests all cloud hosted Atlassian applications (Jira, Confluence) to ensure that
 only valid users have a licence assigned, and that all active users have an
 email in ATLASSIAN_VALID_EMAILS
 
+ATLASSIAN_HOSTNAME        String    The hostname used to connect to the Atlassian API
+
 ATLASSIAN_USERNAME        String    The user used to authenticate against API calls
 
 ATLASSIAN_PASSWORD        String    The password used to authenticate against API calls
@@ -40,50 +42,37 @@ ATLASSIAN_EXCEPTIONS = {
   }
 
 """
-import time
-import requests
 
 import os
 import imp
+import time
+import pytest
+import requests
+
 CONFIG = imp.load_source('config', os.environ['WATCHDOG_CONFIG_LOCATION'])
 
-def test_all_active_users():
+def _all_active_atlassian_users():
     """
     Asserts that all active users have an email address in ATLASSIAN_VALID_EMAILS
     ATLASSIAN_EXCEPTIONS (and that the current date is before allowed_until)
     """
 
-    url = "https://tbonetv.jira.com/admin/rest/um/1/user/search?max-results=1000"
+    url = "https://%(hostname)s/admin/rest/um/1/user/search?max-results=1000" % {'hostname': CONFIG.ATLASSIAN_HOSTNAME}
     response = requests.get(url, auth=(CONFIG.ATLASSIAN_USERNAME, CONFIG.ATLASSIAN_PASSWORD))
     all_users = response.json()
-    active_users = [user for user in all_users if user['active']]
+    return [user['email'].lower() for user in all_users if user['active']]
 
-    for user in active_users:
-        yield is_valid_user, user['email'].lower()
-
-def test_all_licence_assignments():
+@pytest.mark.parametrize("email", _all_active_atlassian_users())
+def test_user(email):
     """
     Asserts that every user with a licence is either in ATLASSIAN_VALID_EMAILS or
     ATLASSIAN_EXCEPTIONS (and that the current date is before allowed_until)
     """
-    for app in CONFIG.ATLASSIAN_APPLICATIONS:
-
-        url = "https://tbonetv.jira.com/admin/rest/um/1/apps/%(appid)s/users?appId=application-jira-%(appid)s&start-index=0&max-results=1000" % {'appid': CONFIG.ATLASSIAN_APPLICATIONS[app]}
-
-        response = requests.get(url, auth=(CONFIG.ATLASSIAN_USERNAME, CONFIG.ATLASSIAN_PASSWORD))
-        all_app_users = response.json()
-
-        for user in all_app_users:
-            yield is_valid_user, user['email'].lower()
-
-def is_valid_user(user_email):
-    """
-    Asserts that either an email address is in ATLASSIAN_VALID_EMAILS or is
-    in ATLASSIAN_EXCEPTIONS and that the 'allowed_until' field is after this date
-    """
-
-    if user_email in CONFIG.ATLASSIAN_EXCEPTIONS:
-        valid_until = time.strptime(CONFIG.ATLASSIAN_EXCEPTIONS[user_email]['allowed_until'], "%d/%m/%Y")
+    if email in CONFIG.ATLASSIAN_EXCEPTIONS:
+        valid_until = time.strptime(CONFIG.ATLASSIAN_EXCEPTIONS[email]['allowed_until'], "%d/%m/%Y")
         assert time.gmtime() <= valid_until
     else:
-        assert user_email in CONFIG.ATLASSIAN_VALID_EMAILS
+        assert email in CONFIG.ATLASSIAN_VALID_EMAILS
+
+
+

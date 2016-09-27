@@ -31,15 +31,18 @@ OFFICE_365_ALLOWED_ADMINS       list        A list of allowed email addresses
 
 import os
 import imp
+import pytest
 CONFIG = imp.load_source('config', os.environ['WATCHDOG_CONFIG_LOCATION'])
 
-def test_unknown_outlook_users():
+
+def _all_outlook_users():
     """
     Splits the contents of the users.csv file in to lines and tokenises each
     entry, verifying that each entry has at least one email address
     specified in OFFICE_365_VALID_EMAILS variable.
     """
     users = CONFIG.OFFICE_365_USERS_CSV_CONTENTS.split('\r\n')
+    user_list = []
     for user in users:
         fields = [field[1:-1] for field in user.split(',')]
         if len(fields) > 1:
@@ -49,31 +52,36 @@ def test_unknown_outlook_users():
                 if object_type == "UserMailbox":
                     email_addresses = fields[2]
                     emails = [mail.lower().split(":")[1].replace('"', '') for mail in email_addresses.split() if '@' in mail]
-                    yield outlook_user_is_valid, display_name, emails
+                    user_list.append((display_name, emails))
+    return user_list
 
-def test_admins_are_known():
+def _all_outlook_admin_users():
     """
-    Splits the contents of admin.txt in to lines and ensures that each
-    administrator email address is present in the OFFICE_365_ALLOWED_ADMINS
-    variable.
+    Splits the contents of the users.csv file in to lines and tokenises each
+    entry, verifying that each entry has at least one email address
+    specified in OFFICE_365_VALID_EMAILS variable.
     """
+    admin_email_list = []
     admin_output = CONFIG.OFFICE_365_ADMIN_TXT_CONTENTS.split('\r\n')
     for line in admin_output:
         tokens = [field.lower() for field in line.split()]
         for token in tokens:
             if '@' in token:
-                yield outlook_user_is_valid_admin, token
+                admin_email_list.append(token)
+    return admin_email_list
 
-def outlook_user_is_valid_admin(email):
+@pytest.mark.parametrize("admin_email", _all_outlook_admin_users())
+def test_outlook_admin_is_known(admin_email):
     """
-    Asserts that the email address provided is a permitted admin
-    :param email:    str   The email address that you'd like to verify the admin
-                           status of
+    Splits the contents of admin.txt in to lines and ensures that each
+    administrator email address is present in the OFFICE_365_ALLOWED_ADMINS
+    variable.
     """
-    assert email in CONFIG.OFFICE_365_ALLOWED_ADMINS
+    assert admin_email in CONFIG.OFFICE_365_ALLOWED_ADMINS
 
 
-def outlook_user_is_valid(display_name, user_emails):
+@pytest.mark.parametrize("display_name,email_addresses", _all_outlook_users())
+def test_outlook_user_is_valid(display_name, email_addresses):
     """
     Asserts that at least one email address associated with a user is valid
     :param displayname:    str           The display name of the user being
@@ -85,5 +93,5 @@ def outlook_user_is_valid(display_name, user_emails):
     """
     assert display_name is not None
     # Check that at least one of the emails associated with this user is in LDAP
-    matches = [email in CONFIG.OFFICE_365_VALID_EMAILS for email in user_emails]
+    matches = [email in CONFIG.OFFICE_365_VALID_EMAILS for email in email_addresses]
     assert True in matches

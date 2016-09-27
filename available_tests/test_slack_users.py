@@ -42,43 +42,23 @@ import os
 import imp
 import time
 import requests
+import pytest
 
 CONFIG = imp.load_source('config', os.environ['WATCHDOG_CONFIG_LOCATION'])
 
-def get_all_active_slack_users(auth_token):
+def _all_active_slack_users(auth_token=CONFIG.SLACK_AUTH_TOKEN):
     """
     Returns a list of active slack users, each represented as a dictionary.
     (See https://api.slack.com/methods/users.list for fields)
     """
-
     uri = 'https://slack.com/api/users.list?token=' + auth_token
     response = requests.get(uri)
     all_slack_users = response.json()
-    all_active_slack_users = [member for member in all_slack_users['members'] if not member['deleted']]
+    all_active_slack_users = [(member['profile']['email'].lower(), member) for member in all_slack_users['members'] if not member['deleted'] and member['id'] != 'USLACKBOT' and not member['is_bot']]
     return all_active_slack_users
 
-def test_unknown_slack_users():
-    """
-    Iterates through all active Slack users and asserts that they are either
-    registered with a valid email (SLACK_VALID_EMAILS) or is in SLACK_EXCEPTIONS
-    and the current date is before the 'allowed_until' field
-    """
-
-    all_active_slack_users = get_all_active_slack_users(auth_token=CONFIG.SLACK_AUTH_TOKEN)
-
-    for user in all_active_slack_users:
-
-        if user['id'] != 'USLACKBOT' and not user['is_bot']:
-            # This user isn't a bot
-            user_name = user['name']
-            user_email = user['profile']['email'].lower()
-            user_two_factor_enabled = user['has_2fa']
-            user_single_channel_only = user['is_ultra_restricted']
-
-            yield slack_user_is_valid, user_name, user_email, user_two_factor_enabled, user_single_channel_only
-
-
-def slack_user_is_valid(username, email, two_factor_enabled, single_channel_only):
+@pytest.mark.parametrize("email,slack_user", _all_active_slack_users())
+def test_slack_user(email,slack_user):
     """
     Asserts that an email address is either in SLACK_VALID_EMAILS or is a key in
     SLACK_EXCEPTIONS and that the 'allowed_until' field is after todays date
@@ -96,12 +76,11 @@ def slack_user_is_valid(username, email, two_factor_enabled, single_channel_only
             assert time.gmtime() <= valid_until
 
         if 'single_channel' in exception_match:
-            assert single_channel_only
+            assert slack_user['is_ultra_restricted']
 
         if 'prefix' in exception_match:
-            assert username.startswith(exception_match['prefix'])
+            assert slack_user['name'].startswith(exception_match['prefix'])
 
     else:
         assert email in CONFIG.SLACK_VALID_EMAILS
-
-
+        assert slack_user['has_2fa']

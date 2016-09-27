@@ -39,10 +39,13 @@ GITHUB_ALLOWED_HOOKS = [{'config' : {'domain': 'notify.travis-ci.org', 'user': '
                        ]
 ]
 """
-import requests
+
 
 import os
 import imp
+import pytest
+import requests
+
 CONFIG = imp.load_source('config', os.environ['WATCHDOG_CONFIG_LOCATION'])
 
 
@@ -89,59 +92,43 @@ def get_hooks_for_repo(organisation, reponame):
     response = requests.get(uri, auth=(CONFIG.GITHUB_API_TOKEN, 'x-oauth-basic'))
     return response.json()
 
-def test_unknown_hooks():
+
+def _get_all_github_hooks():
     """
     Tests that all repos for all the organisations specified in CONFIG.GITHUB_ORGANISATIONS
     have no unknown web or email hooks
     """
+    all_hooks = []
     for organisation in CONFIG.GITHUB_ORGANISATIONS:
         for repo in get_all_github_repos(organisation):
-            yield github_repo_is_clean, organisation, repo['name']
+            all_hooks.append((repo['name'], organisation, get_hooks_for_repo(organisation, repo)))
+    return all_hooks
 
-def github_repo_is_clean(organisation, reponame):
-    """
-    Returns True if a repository either has 0 hooks associated, or all hooks for
-    are known (Either email hooks associated with an email address provided in
-    CONFIG.GITHUB_VALID_EMAILS or is a webhook with a URL as specified in
-    CONFIG.GITHUB_HOOKS_ALLOWED_URLS.
-
-    :param organisation:  (str)   The github organisation that owns the
-                                  repository you wish to audit the hooks of
-    :param reponame:      (str)   The name of the repository that you'd like to
-                                  it the hooks for
-    :returns:             (bool)  True if the repository has 0 hooks or all
-                                  hooks are known, False if there are unknown
-                                  hooks for this repository
-    """
-
-    hooks = get_hooks_for_repo(organisation, reponame)
-    unknown_hooks = [hook for hook in hooks if not allowed_hook(hook)]
-    assert len(unknown_hooks) == 0
 
 def dictionary_match(dict1, dict2):
     """
-    Recursively tests whether dict1 is a "loose" subset of dict2, where loose means 
+    Recursively tests whether dict1 is a "loose" subset of dict2, where loose means
     string values in dict1 are "in" the opposite value in dict2, meaning these two dictionaries
     are considered "matched":
 
-    dict1: 
+    dict1:
 
         {'config' : {'url': 'https://tbonetv.jira.com/rest/bitbucket/1.0/repository'}}
-    
-    dict2: 
+
+    dict2:
 
     { 'active': True,
-      'config': {   
-          'url': 
+      'config': {
+          'url':
           'https://tbonetv.jira.com/rest/bitbucket/1.0/repository/1234/sync'
         },
       'created_at': u'2015-08-10T15:10:24Z',
       'events': ['push'],
       'id': 123456,
-      'last_response': { 
-        'code': 200, 
-        'message': u'OK', 
-        'status': 
+      'last_response': {
+        'code': 200,
+        'message': u'OK',
+        'status':
         'active'
       },
       'name': u'web',
@@ -168,7 +155,8 @@ def dictionary_match(dict1, dict2):
         result = False
     return result
 
-def allowed_hook(hook):
+@pytest.mark.parametrize("repo,organisation,hook", _get_all_github_hooks())
+def test_allowed_hook(repo,organisation,hook):
     """
     Asserts that a given hook matches all of the data in a entry in
     CONFIG.GITHUB_ALLOWED_HOOKS
@@ -179,5 +167,5 @@ def allowed_hook(hook):
     """
 
     # Check if it's an allowed exception
-    matches = [dictionary_match(hook_exception, hook) for hook_exception in CONFIG.GITHUB_ALLOWED_HOOKS]
-    return True in matches
+    hook_allow_booleans = [dictionary_match(hook_exception, hook) for hook_exception in CONFIG.GITHUB_ALLOWED_HOOKS]
+    return False in hook_allow_booleans

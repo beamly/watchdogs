@@ -13,33 +13,25 @@ MAILCHIMP_VALID_EMAILS    List         A list of email addresses for valid Mailc
 
 """
 
-import requests
 import os
 import imp
+import pytest
+import requests
 CONFIG = imp.load_source('config', os.environ['WATCHDOG_CONFIG_LOCATION'])
 
-def get_all_mailchimp_team_members(datacenter, api_key):
+def _all_mailchimp_team_members():
     """
     Returns a list of members for a given mailchimp account, each represented as a dictionary.
     (See https://apidocs.mailchimp.com/api/2.0/users/logins.php for fields)
     """
-
-    uri = "https://{0}.api.mailchimp.com/2.0//users/logins.json?apikey={1}-us4".format(datacenter, api_key)
+    uri = "https://{0}.api.mailchimp.com/2.0//users/logins.json?apikey={1}-us4".format(CONFIG.MAILCHIMP_DATACENTER, CONFIG.MAILCHIMP_API_KEYS)
     response = requests.get(uri)
     all_mailchimp_users = response.json()
-    return all_mailchimp_users
+    return [user['email'] for user in all_mailchimp_users]
 
-def test_unknown_mailchimp_users():
+@pytest.mark.parametrize("email", _all_mailchimp_team_members())
+def test_mailchimp_user(email):
     """
     Assert that all email addresses of all users in Mailchimp are known
     """
-    all_mailchimp_users = get_all_mailchimp_team_members(datacenter=CONFIG.MAILCHIMP_DATACENTER, api_key=CONFIG.MAILCHIMP_API_KEYS)
-    for user in all_mailchimp_users:
-        yield email_is_in_valid, user['email'].lower()
-
-def email_is_in_valid(mailchimp_email_address):
-    """
-    Assert that the email address of a single Mailchimp user is valid/active
-    """
-    valid_emails = [email.lower() for email in CONFIG.MAILCHIMP_VALID_EMAILS]
-    assert mailchimp_email_address in valid_emails
+    assert email in CONFIG.MAILCHIMP_VALID_EMAILS

@@ -67,6 +67,7 @@ AWS_IAM_VAULT_USER_LEASE_TIME               Only required if AWS_IAM_VALID_VAULT
 """
 import time
 import base64
+import pytest
 from datetime import datetime
 from dateutil.parser import parse
 from boto.exception import BotoServerError
@@ -147,7 +148,7 @@ def is_vault_enabled():
     except AttributeError:
         return False
 
-def test_all_iam_users():
+def _all_iam_users():
     """
     Ensure that all IAM users:
 
@@ -159,12 +160,8 @@ def test_all_iam_users():
     - That all access keys have been used within the last AWS_IAM_KEY_LAST_USED_DAYS
     """
     iam_users = CFN.get_all_users()
+    return [user['user_name'] for user in iam_users['list_users_response']['list_users_result']['users']]
 
-    for user in iam_users['list_users_response']['list_users_result']['users']:
-        if is_vault_enabled():
-            yield iam_user_is_valid, user, CONFIG.AWS_IAM_VALID_VAULT_USERS, CONFIG.AWS_IAM_VAULT_USER_AUTH_MECHANISM, CONFIG.AWS_IAM_VAULT_USER_LEASE_TIME
-        else:
-            yield iam_user_is_valid, user
 
 def user_has_password(username):
     """
@@ -196,7 +193,8 @@ def get_access_keys_for_user(username, active_only=True):
     response = CFN.get_all_access_keys(user_name=username)['list_access_keys_response']['list_access_keys_result']['access_key_metadata']
     return [key['access_key_id'] for key in response if (active_only and key['status'] == 'Active') or not active_only]
 
-def iam_user_is_valid(user, vault_usernames=None, vault_auth_method='ldap', vault_lease_time=3600):
+@pytest.mark.parametrize("username", _all_iam_users())
+def test_iam_user_is_valid(username):
     """
     Ensure that the username of the provided user:
 
@@ -209,16 +207,15 @@ def iam_user_is_valid(user, vault_usernames=None, vault_auth_method='ldap', vaul
     :param user:    str     The AWS IAM user that you would like to validate
     """
     # Assert that the user is known
-    username = user['user_name']
     tokens = username.split('-')
 
-    if username.startswith('vault-') and vault_usernames is not None and len(tokens) == 6:
+    if username.startswith('vault-') and CONFIG.AWS_IAM_VALID_VAULT_USERS is not None and len(tokens) == 6:
         # Looks like a vault user.
         grace_period = 120
-        earliest_create_time = time.time() - vault_lease_time - grace_period
+        earliest_create_time = time.time() - CONFIG.AWS_IAM_VAULT_USER_LEASE_TIME - grace_period
         assert tokens[0] == 'vault'
-        assert tokens[1] == vault_auth_method
-        assert tokens[2] in vault_usernames
+        assert tokens[1] == CONFIG.AWS_IAM_VAULT_USER_AUTH_MECHANISM
+        assert tokens[2] in CONFIG.AWS_IAM_VALID_VAULT_USERS
         assert int(tokens[4]) > earliest_create_time
     else:
         assert username.lower() in CONFIG.AWS_IAM_VALID_USERNAMES
