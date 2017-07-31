@@ -55,9 +55,10 @@ for a vast range of services that operations teams can pick and choose from.
 Getting Started
 ----------------
 
-### 1. Fork this repo
+### Running Locally Direct From Source
+#### 1. Fork this repo
 
-### 2. Install dependencies
+#### 2. Install dependencies
 
 We recommend first creating a virtualenv:
 ```
@@ -71,7 +72,7 @@ Before installing the requirements using pip:
 pip install -r requirements.txt
 ```
 
-### 3. Enable the scripts you want to run
+#### 3. Enable the scripts you want to run
 
 There are two directories in the repo `available_tests` and `enabled_tests`.
 `enabled_tests` contains every test available, and the idea is you symlink the
@@ -82,7 +83,7 @@ of the repo)
 ln -s ../available_tests/test_pagerduty_users.py enabled_tests/test_pagerduty_users.py
 ````
 
-### 4. Write a configuration file (config.py)
+#### 4. Write a configuration file (config.py)
 
 `config.py` is a python script containing your secret, organisation specific data \
 required for your chosen tests to run, including:
@@ -115,6 +116,9 @@ enabled_tests/test_pagerduty_users_all_valid.py ........................
 
 ========================== 24 passed in 2.60 seconds ==========================
 ```
+
+### Running With Docker
+There is a Dockerfile in this repository so serve as a base image for your tests. See [the example Docker project](example_docker_usage/) for a usage example.
 
 Contributing
 ------------
