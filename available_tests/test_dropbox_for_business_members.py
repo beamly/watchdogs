@@ -20,7 +20,7 @@ CONFIG = imp.load_source('config', os.environ['WATCHDOG_CONFIG_LOCATION'])
 
 def _all_dropbox_emails():
     headers = {'Authorization': 'Bearer {0}'.format(CONFIG.DROPBOX_APP_ACCESS_TOKEN), 'Content-Type': 'application/json'}
-    response = requests.post('https://api.dropbox.com/1/team/members/list', headers=headers, data=json.dumps({'limit': 1000}))
+    response = requests.post('https://api.dropbox.com/2/team/members/list', headers=headers, data=json.dumps({'limit': 1000}))
     return [member['profile']['email'] for member in response.json()['members']]
 
 @pytest.mark.parametrize("email", _all_dropbox_emails())
